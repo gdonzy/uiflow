@@ -10,6 +10,7 @@ keyboard = KeyController()
 
 def _exec_mouse(op_info):
     mouse.position = (op_info['x'], op_info['y'])
+    mouse.move(0, 0)
     if 'left' in op_info['button']:
         button = Button.left
     elif 'right' in op_info['button']:
@@ -24,12 +25,24 @@ def _exec_key(op_info):
         keyboard.press(op_info['key'])
     elif op_info['type'] == 'release':
         keyboard.release(op_info['key'])
+        
+def _exec_control(op_info):
+    if op_info['type'] == 'press':
+        keyboard.press(getattr(Key, op_info['key'][4:]))
+    elif op_info['type'] == 'release':
+        keyboard.release(getattr(Key, op_info['key'][4:]))
+        
+    time.sleep(op_info.get('time') or 0)
+    
+def _exec_sleep(op_info):
+    time.sleep(op_info.get('time') or 0)
 
 def exec_node(node):
     op_exec = {
         'mouse': _exec_mouse,
         'key': _exec_key,
-        'combine': _exec_key,
+        'control': _exec_control,
+        'sleep': _exec_sleep,
     }
 
     if not node.get('data') or not node['data'].get('op_list'):
@@ -67,6 +80,7 @@ def exec_flow(work_dir):
     }
 
     relay_nodes = {node_list[0]['id']: node_list[0]}
+    prev_node_ts = None
     while len(relay_nodes) > 0:
         print(relay_nodes)
         # 遍历已完成节点，后续节点添加到relay_nodes，清理之前已完成节点

@@ -4,7 +4,7 @@ import json
 def step_group_type(step):
     type_ = None
     if step.get('key'):
-        type_ = 'key' if len(step['key']) == 1 else 'combine'
+        type_ = 'key' if len(step['key']) == 1 else 'control'
     else:
         type_ = 'mouse'
     return type_
@@ -32,15 +32,16 @@ def aggregate_steps(steps):
 def gen_node_by_group(group, curr_id):
     labels = {
         'key': '按键',
-        'combine': '组合按键',
+        'control': '控制按键或组合按键',
         'mouse': '鼠标点击',
+        'sleep': '间隔时间',
     }
     node = {
         "id": curr_id,
         "data": {
             "label": labels[group['type']],
             'op_type': group['type'],
-            'op_list': group['steps']
+            'op_list': group.get('steps') or []
         },
     }
     return node
@@ -76,9 +77,21 @@ def mk_flow(work_dir):
     group_list = aggregate_steps(steps)
     
     curr_id, node_list, edge_list = 2, [{'id': 1, "type": "input"}], []
+    last_ts = None
     for group in group_list:
+        if last_ts and group.get('steps'):
+            node_list.append(gen_node_by_group({
+                'type': 'sleep',
+                'steps': [{
+                    'time': round((group['steps'][0]['ts'] - last_ts), 2),
+                    'type':'sleep',
+                    'ts': group['steps'][0]['ts']
+                }]
+            }, curr_id))
+            curr_id += 1
         node_list.append(gen_node_by_group(group, curr_id))
         curr_id += 1
+        last_ts = group['steps'][-1]['ts'] if group.get('steps') else None
     node_list.append({'id': curr_id})
     for idx, node in enumerate(node_list[:-1]):
         next = node_list[idx+1]
