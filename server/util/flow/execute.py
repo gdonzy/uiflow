@@ -5,6 +5,8 @@ import time
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Key, Controller as KeyController
 
+from server.common.constant import ExecNodeStatus
+
 mouse = MouseController()
 keyboard = KeyController()
 
@@ -59,10 +61,9 @@ def exec_node(node):
         prev_base_ts, prev_orig_ts = round(time.time(), 2), round(op_info['ts'], 2)
         op_exec[op_type](op_info)
 
-def exec_flow(work_dir):
-    with open(os.path.join(work_dir, 'flow.json')) as f:
-        flow = json.load(f)
-    node_list, edge_list = flow['nodes'], flow['edges']
+def exec_flow(flow_info, update_node_indb_func=None):
+    succ = True
+    node_list, edge_list = flow_info['nodes'], flow_info['edges']
 
     # 一个node可能有多个输入边，一个node只能有一个输出边
     edge_map = {
@@ -87,9 +88,11 @@ def exec_flow(work_dir):
         done = {
             id_: node
             for id_, node in relay_nodes.items()
-            if node.get('status') == 'done'
+            if node.get('status') == ExecNodeStatus.success.value
         }
         done_ids = list(done.keys())
+        if update_node_indb_func:
+            update_node_indb_func(list(done.values()))
         for s_id in done_ids:
             t_id = edge_map['s2t'].get(s_id)
             if not t_id or \
@@ -100,30 +103,44 @@ def exec_flow(work_dir):
             # 一个node可能有多个输入边，一个node只能有一个输出边
             if all_s_ids and set(all_s_ids) & set(done_ids) == set(all_s_ids):
                 relay_nodes[t_id] = node_map[t_id]
+                relay_nodes[t_id]['status'] = ExecNodeStatus.ready.value
+                if update_node_indb_func:
+                    update_node_indb_func([relay_nodes[t_id]])
                 del relay_nodes[s_id]
 
         # 遍历未执行节点，执行至完成
         todo = {
             id_: node
             for id_, node in relay_nodes.items()
-            if not node.get('status') or node['status'] == 'todo'
+            if not node.get('status') or node['status'] == ExecNodeStatus.ready.value
         }
         for _, node in todo.items():
             try:
+                node['status'] = ExecNodeStatus.running.value
+                if update_node_indb_func:
+                    update_node_indb_func([node])
                 exec_node(node)
-                relay_nodes[node['id']]['status'] = 'done'
+                relay_nodes[node['id']]['status'] = ExecNodeStatus.success.value
             except Exception as e:
                 print(f'exec node error: {e}')
-                relay_nodes[node['id']]['status'] = 'fail'
+                relay_nodes[node['id']]['status'] = ExecNodeStatus.failed.value
                 
         # 如果有节点执行失败，则停止
         fail = {
             id_: node
             for id_, node in relay_nodes.items()
-            if node.get('status') == 'fail'
+            if node.get('status') == ExecNodeStatus.failed.value
         }
         if fail:
+            if update_node_indb_func:
+                update_node_indb_func(list(fail.values()))
+            succ = False
             break
+    
+    return succ
 
 if __name__ == '__main__':
-    exec_flow('/Users/donzy/stov/uiflow/flow_data/20241010161832')
+    work_dir = '/Users/donzy/stov/uiflow/flow_data/20241010161832'
+    with open(os.path.join(work_dir, 'flow.json')) as f:
+        flow_info = json.load(f)
+    exec_flow(flow_info)

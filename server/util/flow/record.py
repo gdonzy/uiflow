@@ -10,11 +10,8 @@ from multiprocessing import Process
 
 class MouseListener(object):
     
-    def __init__(self, base_dir, task_uuid=None):
-        if not task_uuid:
-            task_uuid = datetime.now().strftime('%Y%m%d%H%M%S')
-        self.base_dir = base_dir
-        self.work_dir = os.path.join(self.base_dir, task_uuid)
+    def __init__(self, work_dir):
+        self.work_dir = work_dir
         if not os.path.exists(self.work_dir):
             os.makedirs(self.work_dir)
         self.records = []
@@ -69,11 +66,8 @@ class MouseListener(object):
         
 class KeyboardListener(object):
     
-    def __init__(self, base_dir, task_uuid=None):
-        if not task_uuid:
-            task_uuid = datetime.now().strftime('%Y%m%d%H%M%S')
-        self.base_dir = base_dir
-        self.work_dir = os.path.join(self.base_dir, task_uuid)
+    def __init__(self, work_dir):
+        self.work_dir = work_dir
         if not os.path.exists(self.work_dir):
             os.makedirs(self.work_dir)
         self.records = []
@@ -124,11 +118,12 @@ class KeyboardListener(object):
             on_release=self.on_release)
         listener.start()
     
-def record_ui_flow():
-    p = Process(target=MouseListener('./flow_data').block_listen)
+def record_ui_flow(work_dir):
+    p = Process(target=MouseListener(work_dir).block_listen)
     p.daemon = True
     p.start()
-    KeyboardListener('./flow_data').block_listen()
+    KeyboardListener(work_dir).block_listen()
+    p.terminate()
 
 if __name__ == '__main__':
     record_ui_flow()
