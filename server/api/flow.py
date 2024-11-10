@@ -11,20 +11,34 @@ from server.model import SessionDep, Flow, FlowCreate, FlowRead, FlowDetail, Flo
 from server.util.flow.record import record_ui_flow
 from server.util.flow.gen import mk_flow
 from server.util.flow.execute import exec_flow
+from server.common.constant import FlowStatus
 
 flow_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
+
+def _update_flow(session: SessionDep, flow: Flow, toUpdateInfo: dict):
+    flow.sqlmodel_update(toUpdateInfo)
+    session.add(flow)
+    session.commit()
 
 def ui_ops_to_flow(session: SessionDep, task_uuid: str):
     flow = session.exec(select(Flow).where(Flow.task_uuid == task_uuid)).first()
     if not flow:
         raise Exception(f'flow row not found in db, task_uuid:{task_uuid}')
-    # todo: flow中加个status字段，记录任务状态，0:未执行，1:执行中，2:执行成功，3:执行失败
+    status = FlowStatus.ready.value
     work_dir = os.path.join('./flow_data', task_uuid)
-    record_ui_flow(work_dir)
-    flow_info = mk_flow(work_dir)
-    flow.sqlmodel_update({'info': flow_info})
-    session.add(flow)
-    session.commit()
+    try:
+        status = FlowStatus.collecting.value
+        _update_flow(session, flow, {'status': status})
+
+        record_ui_flow(work_dir)
+        flow_info = mk_flow(work_dir)
+
+        status = FlowStatus.success.value
+        _update_flow(session, flow, {'info': flow_info, 'status': status})
+    except Exception as e:
+        status = FlowStatus.failed.value
+        print(f'create flow from ui operations collection error: {e}')
+        _update_flow(session, flow, {'status': status})
     
 router = APIRouter(
     prefix='/flows',
@@ -51,7 +65,9 @@ async def get_flows(session: SessionDep,
     }
     
 @router.post('')
-async def create_flow(flow_create: FlowCreate, session: SessionDep, background_tasks: BackgroundTasks):
+async def create_flow(flow_create: FlowCreate,
+                     session: SessionDep, background_tasks: BackgroundTasks,
+                     ) -> FlowDetail:
     task_uuid = datetime.now().strftime('%Y%m%d%H%M%S')
     flow = Flow(name=flow_create.name, task_uuid=task_uuid, create_at=datetime.now(), update_at=datetime.now())
     session.add(flow)
@@ -60,7 +76,7 @@ async def create_flow(flow_create: FlowCreate, session: SessionDep, background_t
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     background_tasks.add_task(ui_ops_to_flow, session=session, task_uuid=task_uuid)
-    return {}
+    return flow
     
 @router.get('/{flow_id}')
 async def get_flow_detail(session: SessionDep,
