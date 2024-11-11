@@ -68,7 +68,7 @@ export const useFlowStore = defineStore('flowStore', () => {
             acc[item.id] = item
             return acc
           }, {})
-          const input_node = nodes.find((item: any) => item.type === 'input')
+          const input_node = nodes.find((item: any) => item.type === 'start')
           let [curr_ids, next_ids] = [[input_node.id], []]
           let [x, y, x_interval, y_interval] = [120, 50, 120, 70]
           while (curr_ids.length > 0) {

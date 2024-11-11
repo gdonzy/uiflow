@@ -19,9 +19,12 @@
     "normalize.css": "^8.0.1",
     "pinia": "^2.2.4",
     "sass": "^1.79.5",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "vue": "^3.5.10",
     "vue-i18n": "^10.0.4",
-    "vuex": "^4.0.2"
+    "vuex": "^4.0.2",
+    "websocket": "^1.0.35"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.4",

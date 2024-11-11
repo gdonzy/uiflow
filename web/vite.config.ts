@@ -36,6 +36,10 @@ export default defineConfig({
         target: 'http://localhost:8009',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/a/, '')
+      },
+      '/ws/flow': {
+        target: 'ws://localhost:8009/ws/flow',
+        ws: true,
       }
     }
   },

@@ -3,12 +3,15 @@
     <el-header style="height: auto">
       <strong>工作流程</strong>
     </el-header>
-    <el-button-group style="padding: 0 20px;">
+    <el-button-group v-if="flowStore.detail.status >= 2" style="padding: 0 20px;">
       <el-tooltip content="回到工作流程列表" placement="top">
         <el-button @click="backToFlowList" style="width: 10px"><el-icon><Back /></el-icon></el-button>
       </el-tooltip>
       <el-button type="primary" @click="handleSubmit" style="width: 80px">保存</el-button>
       <el-button type="primary" @click="handleExec" style="width:80px">执行</el-button>
+    </el-button-group>
+    <el-button-group v-else style="padding: 0 20px;">
+      <p style="color: red;">点击ESC按键可以退出屏幕录制</p>
     </el-button-group>
     <el-main>
       <el-form :model="flowStore.detail" ref="detailForm" label-width="70px">
@@ -83,7 +86,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, computed, watch, markRaw } from 'vue'
+import { ref, onMounted, computed, watch, markRaw, onBeforeUnmount } from 'vue'
 import { VueFlow, Panel } from '@vue-flow/core'
 
 import { useRoute, useRouter } from 'vue-router'
@@ -92,12 +95,23 @@ import axios from 'axios'
 import UiOpNode from '@/components/node/UiOpNode.vue'
 import StartNode from '@/components/node/StartNode.vue'
 import EndNode from '../components/node/EndNode.vue'
+import { useWebSocket } from '@vueuse/core'
+
 
 const route = useRoute()
 const router = useRouter()
 const flowStore = useFlowStore()
 const handleSubmit = () => {
 }
+
+// websocket
+const { status, data, open, close } = useWebSocket('ws://localhost:8009/ws/flow')
+watch(
+  data,
+  () => {
+    console.log('newData:', data)
+  }
+)
 
 // vue-flow
 const nodeTypes = {
@@ -107,31 +121,14 @@ const nodeTypes = {
 }
 const nodes = computed(() => {
   if ('info' in flowStore.detail && flowStore.detail.info.nodes) {
-    const nodes = flowStore.detail.info.nodes
-    nodes.forEach(item => {
-      item['id'] = item['id'].toString()
-      item['type'] = 'uiop'
-      if ('data' in item) {
-        item['data']['status'] = '2'
-      } else {
-        item['data'] = {'status': '2'}
-      }
-    })
-    console.log('nodes:', nodes)
-    return nodes
+    return flowStore.detail.info.nodes
   } else {
     return []
   }
 })
 const edges = computed(() => {
   if ('info' in flowStore.detail && flowStore.detail.info.edges) {
-    const edges = flowStore.detail.info.edges
-    edges.forEach(item => {
-      item['source'] = item['source'].toString()
-      item['target'] = item['target'].toString()
-    })
-    console.log('edges:', edges)
-    return edges
+    return flowStore.detail.info.edges
   } else {
     return []
   }

@@ -37,9 +37,11 @@ def gen_node_by_group(group, curr_id):
         'sleep': '间隔时间',
     }
     node = {
-        "id": curr_id,
+        "id": str(curr_id),
+        "type": "uiop",
         "data": {
             "label": labels[group['type']],
+            "status": 0,
             'op_type': group['type'],
             'op_list': group.get('steps') or []
         },
@@ -52,7 +54,7 @@ def mk_flow(work_dir):
         "nodes": [
             {
                 "id": "1",
-                #"type": "input/output",
+                "type": "start/uiop/end",
                 "data": {"label": "Node 1", "op_type": "key", "op_list": []},
             },
             ...
@@ -76,7 +78,7 @@ def mk_flow(work_dir):
     
     group_list = aggregate_steps(steps)
     
-    curr_id, node_list, edge_list = 2, [{'id': 1, "type": "input"}], []
+    curr_id, node_list, edge_list = 2, [{'id': "1", "type": "start", "data": {"label": "开始", "status": 0}}], []
     last_ts = None
     for group in group_list:
         if last_ts and group.get('steps'):
@@ -92,7 +94,7 @@ def mk_flow(work_dir):
         node_list.append(gen_node_by_group(group, curr_id))
         curr_id += 1
         last_ts = group['steps'][-1]['ts'] if group.get('steps') else None
-    node_list.append({'id': curr_id})
+    node_list.append({'id': str(curr_id), 'type': 'end', 'data': {'label': '结束', 'status': 0}})
     for idx, node in enumerate(node_list[:-1]):
         next = node_list[idx+1]
         edge_list.append({'id': f'e{node["id"]}-{next["id"]}', 'source': node["id"], "target": next["id"]})

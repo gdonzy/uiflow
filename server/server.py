@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .model import create_db_and_tables, SessionDep, Flow, FlowCreate
-from .api import flow
-from .api import exec_log
+from .api import flow, exec_log, ws, test
+
 
 static_path = os.path.join(os.path.dirname(__file__), 'static')
 
@@ -30,6 +30,8 @@ app.add_middleware(
 )
 app.include_router(flow.router)
 app.include_router(exec_log.router)
+app.include_router(ws.router)
+app.include_router(test.router)
 
 @app.get('/')
 def index():
