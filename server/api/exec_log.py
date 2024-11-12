@@ -1,38 +1,43 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlmodel import select, func
 
-from server.model import SessionDep, Flow, ExecLog, ExecLogCreate, ExecLogRead, ExecLogDetail, ExecNode, ExecLogStatus, ExecNodeStatus
+from server.model import SessionDep, Flow, FlowNode, FlowNodeRead, FlowEdgeRead, ExecLog, ExecLogCreate, ExecLogRead, ExecLogDetail, ExecLogStatus, FlowNodeStatus
 from server.util.flow.execute import exec_flow
 
 def exec_flow_task(session: SessionDep, log_id: int):
     log = session.get(ExecLog, log_id)
-    nodes = session.exec(select(ExecNode).where(ExecNode.log_id == log_id)).all()
+    flow = session.get(Flow, log.flow_id)
+    nodes = session.exec(select(FlowNode).where(FlowNode.flow_id == log.flow_id)).all()
     id_node_map = {
         node.node_id: node for node in nodes
     }
 
-    def update_node_indb(nodes_: list[ExecNode]):
-        if not nodes_:
+    def update_node_indb(node_list: list[FlowNode]):
+        if not node_list:
             return
-        for node_ in nodes_:
-            id_node_map[node_['id']].sqlmodel_update({
-                'status': node_['status'],
-            })
-            session.add(id_node_map[node_['id']])
+        for node in node_list:
+            session.add(node)
         session.commit()
 
-    flow_info = log.flow_info
-    succ = exec_flow(flow_info, update_node_indb_func=update_node_indb)
-    nodes = session.exec(select(ExecNode).where(ExecNode.log_id == log_id)).all()
-    id_node_map = {
-        node.node_id: node for node in nodes
+    
+    flow_info = {
+        'nodes': flow.nodes,
+        'edges': flow.edges,
     }
+    # 初始化所有节点状态为ready
     for node in flow_info['nodes']:
-        node['status'] = id_node_map[node['id']].status
+        node.status = FlowNodeStatus.ready.value
+    update_node_indb(flow_info['nodes'])
+    # 执行
+    succ = exec_flow(flow_info, update_node_indb_func=update_node_indb)
     log.sqlmodel_update({
         'status': ExecLogStatus.success.value if succ else ExecLogStatus.failed.value,
-        'flow_info': flow_info
+        'result': {
+            'nodes': jsonable_encoder(FlowNodeRead.from_flow_nodes(flow_info['nodes'])),
+            'edges': jsonable_encoder(FlowEdgeRead.from_flow_edges(flow_info['edges'])),
+        },
     })
     session.commit()
 
@@ -65,7 +70,7 @@ async def exec_flow_to_record(session: SessionDep, background_tasks: BackgroundT
                              exec_create: ExecLogCreate) -> ExecLogDetail:
     statement = select(Flow).where(Flow.id == exec_create.flow_id)
     flow = session.exec(statement).first()
-    exec_log = ExecLog.create(session, flow.id, flow.info)
+    exec_log = ExecLog.create(session, flow)
     background_tasks.add_task(exec_flow_task, session=session, log_id=exec_log.id)
     return exec_log
 
@@ -79,7 +84,7 @@ async def get_exec_log_detail(session: SessionDep,
             node.node_id: node for node in nodes
         }
         for node in log.info['nodes']:
-            node['status'] = id_node_map[node['id']].status
-            node['result'] = id_node_map[node['id']].result
+            node.status = id_node_map[node['id']].status
+            node.result = id_node_map[node['id']].result
         
     return log

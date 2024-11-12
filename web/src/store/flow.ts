@@ -9,8 +9,27 @@ interface FlowItem {
   update_at: string
 }
 
+interface FlowNode {
+  id: string
+  name: string
+  type: string
+  status: number
+  position: object
+  extra: object
+  create_at: string
+  update_at: string
+}
+
+interface FlowEdge {
+  id: string
+  source: string
+  target: string
+}
+
 interface FlowDetail extends FlowItem{
-  info: any
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  data: [key: string, number] 
 }
 
 interface FlowList {
@@ -60,29 +79,29 @@ export const useFlowStore = defineStore('flowStore', () => {
       try {
         const response = await axios.get(`/flows/${id}`)
         const detail_ = response.data as FlowDetail
-        const nodes = ('info' in detail_)? detail_.info.nodes: []
-        if (nodes && nodes.length > 0 && !('position' in nodes[0])) {
+        if (detail_.nodes && detail_.nodes.length > 0 && !('x' in detail_.nodes[0].position)) {
           //add position into nodes if necessary
-          const edges = ('info' in detail_)? detail_.info.edges: []
-          const id_node_map = nodes.reduce((acc, item) => {
+          const id_node_map = detail_.nodes.reduce((acc, item) => {
             acc[item.id] = item
             return acc
-          }, {})
-          const input_node = nodes.find((item: any) => item.type === 'start')
-          let [curr_ids, next_ids] = [[input_node.id], []]
+          }, {} as {[key: string]: FlowNode})
+          const input_node = detail_.nodes.find((item: any) => item.type === 'start')
+          let curr_ids = [input_node.id]
+          let next_ids: string[] = []
           let [x, y, x_interval, y_interval] = [120, 50, 120, 70]
           while (curr_ids.length > 0) {
-            next_ids = []
+            next_ids = [] 
             curr_ids.forEach((node_id, index) => {
-              if (node_id in id_node_map && !('position' in id_node_map[node_id])) {
-                id_node_map[node_id]['position'] = {x: x+index*x_interval, y: y}
+              if (node_id in id_node_map) {
+                id_node_map[node_id].position = {x: x+index*x_interval, y: y}
               }
             })
-            const related_edges = edges.filter(item => curr_ids.includes(item.source))
-            related_edges.reduce((acc, item) => {
-              if (item.target in id_node_map && !('position' in id_node_map[item.target]))
-              acc.push(item.target)
-            }, next_ids)
+            const related_edges = detail_.edges.filter(item => curr_ids.includes(item.source))
+            related_edges.forEach((item: FlowEdge) => {
+              if (item.target in id_node_map) {
+                next_ids.push(item.target)
+              }
+            })
             curr_ids = next_ids
             y = y + y_interval
           }

@@ -7,10 +7,10 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select, func
 from pydantic import BaseModel
 
-from server.model import SessionDep, Flow, FlowCreate, FlowRead, FlowDetail, FlowUpdate
+from server.model import (SessionDep, Flow, FlowCreate, FlowRead, FlowDetail, 
+                          FlowUpdate, FlowNode, FlowEdge)
 from server.util.flow.record import record_ui_flow
 from server.util.flow.gen import mk_flow
-from server.util.flow.execute import exec_flow
 from server.common.constant import FlowStatus
 
 flow_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
@@ -18,6 +18,11 @@ flow_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
 def _update_flow(session: SessionDep, flow: Flow, toUpdateInfo: dict):
     flow.sqlmodel_update(toUpdateInfo)
     session.add(flow)
+    if toUpdateInfo.get('info') and toUpdateInfo['info'].get('nodes'):
+        flow_info = toUpdateInfo['info']
+        FlowNode.multi_create_or_update(session, flow, flow_info['nodes'])
+        FlowEdge.multi_create_or_update(session, flow, flow_info.get('edges') or [])
+
     session.commit()
 
 def ui_ops_to_flow(session: SessionDep, task_uuid: str):
@@ -38,6 +43,7 @@ def ui_ops_to_flow(session: SessionDep, task_uuid: str):
     except Exception as e:
         status = FlowStatus.failed.value
         print(f'create flow from ui operations collection error: {e}')
+        import traceback;traceback.print_exc()
         _update_flow(session, flow, {'status': status})
     
 router = APIRouter(
@@ -82,7 +88,7 @@ async def create_flow(flow_create: FlowCreate,
 async def get_flow_detail(session: SessionDep,
                          flow_id: int) -> FlowDetail:
     flow = session.exec(select(Flow).where(Flow.id == flow_id)).first()
-    return flow
+    return FlowDetail.from_flow_record(flow)
 
 @router.put('/{flow_id}')
 async def update_flow(session: SessionDep, flow_id: int, flow_update: FlowUpdate) -> FlowDetail:

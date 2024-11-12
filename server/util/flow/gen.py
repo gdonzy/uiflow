@@ -37,11 +37,11 @@ def gen_node_by_group(group, curr_id):
         'sleep': '间隔时间',
     }
     node = {
-        "id": str(curr_id),
+        "node_id": str(curr_id),
         "type": "uiop",
-        "data": {
-            "label": labels[group['type']],
-            "status": 0,
+        "label": labels[group['type']],
+        "status": 0,
+        "extra": {
             'op_type': group['type'],
             'op_list': group.get('steps') or []
         },
@@ -53,15 +53,16 @@ def mk_flow(work_dir):
     {
         "nodes": [
             {
-                "id": "1",
+                "node_id": "1",
                 "type": "start/uiop/end",
-                "data": {"label": "Node 1", "op_type": "key", "op_list": []},
+                "label": "Node 1",
+                "extra": { "op_type": "key", "op_list": []},
             },
             ...
         ]
         "edges": [
             {
-                "id": "e1-2",
+                "edge_id": "e1-2",
                 "source": "1",
                 "target": "2",
             },
@@ -78,7 +79,7 @@ def mk_flow(work_dir):
     
     group_list = aggregate_steps(steps)
     
-    curr_id, node_list, edge_list = 2, [{'id': "1", "type": "start", "data": {"label": "开始", "status": 0}}], []
+    curr_id, node_list, edge_list = 2, [{'node_id': "1", "type": "start","label": "开始", "status": 0}], []
     last_ts = None
     for group in group_list:
         if last_ts and group.get('steps'):
@@ -94,19 +95,20 @@ def mk_flow(work_dir):
         node_list.append(gen_node_by_group(group, curr_id))
         curr_id += 1
         last_ts = group['steps'][-1]['ts'] if group.get('steps') else None
-    node_list.append({'id': str(curr_id), 'type': 'end', 'data': {'label': '结束', 'status': 0}})
+    node_list.append({'node_id': str(curr_id), 'type': 'end', 'label': '结束', 'status': 0})
     for idx, node in enumerate(node_list[:-1]):
         next = node_list[idx+1]
-        edge_list.append({'id': f'e{node["id"]}-{next["id"]}', 'source': node["id"], "target": next["id"]})
+        edge_list.append({'edge_id': f'e{node["node_id"]}-{next["node_id"]}',
+                          'source': node["node_id"], "target": next["node_id"]})
         
-    flow = {
+    flow_info = {
         'nodes': node_list,
         'edges': edge_list
     }
     with open(os.path.join(work_dir, 'flow.json'), 'w') as f:
-        json.dump(flow, f)
+        json.dump(flow_info, f)
         
-    return flow
+    return flow_info
 
 if __name__ == '__main__':
     mk_flow('/Users/donzy/stov/uiflow/flow_data/20241010161832')

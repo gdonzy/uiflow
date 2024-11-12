@@ -12,7 +12,7 @@ class ExecLogStatus(Enum):
     success = 2
     failed = 3
     
-class ExecNodeStatus(Enum):
+class FlowNodeStatus(Enum):
     ready = 0
     running = 1
     success = 2

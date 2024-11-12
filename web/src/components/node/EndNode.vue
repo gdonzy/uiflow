@@ -2,7 +2,7 @@
   <div>
     <Handle type="target" :position="Position.Top" />
     <div>
-      <span font-size="14px">{{ data.label }}</span>
+      <span font-size="14px">{{ label }}</span>
       <el-icon class="icon" :style="statusColor">
         <component :is="statusIcon"></component>
       </el-icon>
@@ -14,24 +14,24 @@
 import { Position, Handle } from '@vue-flow/core'
 import { Clock, Loading, Check, CircleClose } from '@element-plus/icons-vue'
 
-const props = defineProps(['data'])
+const props = defineProps(['label', 'data'])
 const statuses = {
-    '0': {
+    0: {
         name: '待执行',
         icon: Clock,
         color: '#909399',
     },
-    '1': {
+    1: {
         name: '执行中',
         icon: Loading,
         color: '#409EFF',
     },
-    '2': {
+    2: {
         name: '执行成功',
         icon: Check,
         color: '#67C23A',
     },
-    '3': {
+    3: {
         name: '待执失败',
         icon: CircleClose,
         color: '#F56C6C',

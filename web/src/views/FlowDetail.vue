@@ -120,18 +120,10 @@ const nodeTypes = {
   uiop: markRaw(UiOpNode)
 }
 const nodes = computed(() => {
-  if ('info' in flowStore.detail && flowStore.detail.info.nodes) {
-    return flowStore.detail.info.nodes
-  } else {
-    return []
-  }
+  return flowStore.detail.nodes
 })
 const edges = computed(() => {
-  if ('info' in flowStore.detail && flowStore.detail.info.edges) {
-    return flowStore.detail.info.edges
-  } else {
-    return []
-  }
+  return flowStore.detail.edges
 })
 const nodeDialogVisible = ref(false)
 const edgeDialogVisible = ref(false)

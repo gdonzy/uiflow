@@ -5,7 +5,7 @@ import time
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Key, Controller as KeyController
 
-from server.common.constant import ExecNodeStatus
+from server.common.constant import FlowNodeStatus
 
 mouse = MouseController()
 keyboard = KeyController()
@@ -47,11 +47,11 @@ def exec_node(node):
         'sleep': _exec_sleep,
     }
 
-    if not node.get('data') or not node['data'].get('op_list'):
+    if not node.extra.get('op_list'):
         return
 
-    op_type = node['data'].get('op_type')
-    op_list = node['data'].get('op_list')
+    op_type = node.extra.get('op_type')
+    op_list = node.extra.get('op_list')
     prev_base_ts, prev_orig_ts = round(time.time(), 2), round(op_list[0]['ts'], 2)
     for op_info in op_list:
         sleep_duration = (round(op_info['ts'], 2) - prev_orig_ts) - (round(time.time(), 2) - prev_base_ts)
@@ -71,24 +71,24 @@ def exec_flow(flow_info, update_node_indb_func=None):
         't2s': {} # target to source
     }
     for edge in edge_list:
-        edge_map['s2t'][edge['source']] = edge['target']
-        if edge['target'] not in edge_map['t2s']:
-            edge_map['t2s'][edge['target']] = []
-        edge_map['t2s'][edge['target']].append(edge['source'])
+        edge_map['s2t'][edge.source] = edge.target
+        if edge.target not in edge_map['t2s']:
+            edge_map['t2s'][edge.target] = []
+        edge_map['t2s'][edge.target].append(edge.source)
     node_map = {
-        node['id']: node
+        node.node_id: node
         for node in node_list
     }
 
-    relay_nodes = {node_list[0]['id']: node_list[0]}
+    relay_nodes = {node_list[0].node_id: node_list[0]}
     prev_node_ts = None
     while len(relay_nodes) > 0:
-        print(relay_nodes)
+        print(relay_nodes) #todel
         # 遍历已完成节点，后续节点添加到relay_nodes，清理之前已完成节点
         done = {
-            id_: node
-            for id_, node in relay_nodes.items()
-            if node.get('status') == ExecNodeStatus.success.value
+            node_id: node
+            for node_id, node in relay_nodes.items()
+            if node.status == FlowNodeStatus.success.value
         }
         done_ids = list(done.keys())
         if update_node_indb_func:
@@ -103,33 +103,34 @@ def exec_flow(flow_info, update_node_indb_func=None):
             # 一个node可能有多个输入边，一个node只能有一个输出边
             if all_s_ids and set(all_s_ids) & set(done_ids) == set(all_s_ids):
                 relay_nodes[t_id] = node_map[t_id]
-                relay_nodes[t_id]['status'] = ExecNodeStatus.ready.value
+                relay_nodes[t_id].status = FlowNodeStatus.ready.value
                 if update_node_indb_func:
                     update_node_indb_func([relay_nodes[t_id]])
                 del relay_nodes[s_id]
 
         # 遍历未执行节点，执行至完成
         todo = {
-            id_: node
-            for id_, node in relay_nodes.items()
-            if not node.get('status') or node['status'] == ExecNodeStatus.ready.value
+            node_id: node
+            for node_id, node in relay_nodes.items()
+            if node.status == FlowNodeStatus.ready.value
         }
         for _, node in todo.items():
             try:
-                node['status'] = ExecNodeStatus.running.value
+                node.status = FlowNodeStatus.running.value
                 if update_node_indb_func:
                     update_node_indb_func([node])
                 exec_node(node)
-                relay_nodes[node['id']]['status'] = ExecNodeStatus.success.value
+                relay_nodes[node.node_id].status = FlowNodeStatus.success.value
             except Exception as e:
+                import traceback; traceback.print_exc()
                 print(f'exec node error: {e}')
-                relay_nodes[node['id']]['status'] = ExecNodeStatus.failed.value
+                relay_nodes[node.node_id].status = FlowNodeStatus.failed.value
                 
         # 如果有节点执行失败，则停止
         fail = {
-            id_: node
-            for id_, node in relay_nodes.items()
-            if node.get('status') == ExecNodeStatus.failed.value
+            node_id: node
+            for node_id, node in relay_nodes.items()
+            if node.status == FlowNodeStatus.failed.value
         }
         if fail:
             if update_node_indb_func:
