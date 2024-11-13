@@ -1,5 +1,6 @@
 import os.path
 import json
+import asyncio
 
 from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -12,6 +13,7 @@ from server.model import (SessionDep, Flow, FlowCreate, FlowRead, FlowDetail,
 from server.util.flow.record import record_ui_flow
 from server.util.flow.gen import mk_flow
 from server.common.constant import FlowStatus
+from server.api.ws import ws_send_msg
 
 flow_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
 
@@ -24,6 +26,9 @@ def _update_flow(session: SessionDep, flow: Flow, toUpdateInfo: dict):
         FlowEdge.multi_create_or_update(session, flow, flow_info.get('edges') or [])
 
     session.commit()
+    asyncio.run(
+        ws_send_msg({'msg_type': 'flow_status', 'flow_id': str(flow.id), 'flow_status': flow.status})
+    )
 
 def ui_ops_to_flow(session: SessionDep, task_uuid: str):
     flow = session.exec(select(Flow).where(Flow.task_uuid == task_uuid)).first()

@@ -11,7 +11,7 @@
       <el-button type="primary" @click="handleExec" style="width:80px">执行</el-button>
     </el-button-group>
     <el-button-group v-else style="padding: 0 20px;">
-      <p style="color: red;">点击ESC按键可以退出屏幕录制</p>
+      <p class="warning-text">当前正在记录屏幕操作，停止录制请点击ESC键退出录制</p>
     </el-button-group>
     <el-main>
       <el-form :model="flowStore.detail" ref="detailForm" label-width="70px">
@@ -25,7 +25,10 @@
         <el-form-item label="创建时间" key="createAt">
           <span>{{ flowStore.detail.create_at }}</span>
         </el-form-item>
-        <div label="流程" key="flow">
+        <el-form-item v-show="flowStore.detail.status == 2" label="执行状态" key="lastExec">
+          <span>1</span>
+        </el-form-item>
+        <div v-show="flowStore.detail.status >= 2" label="流程" key="flow">
           <div class="flowchart" style="width: 1000px; height: 1000px; border: 1px solid black;">
             <VueFlow 
               :nodes="nodes"
@@ -109,7 +112,30 @@ const { status, data, open, close } = useWebSocket('ws://localhost:8009/ws/flow'
 watch(
   data,
   () => {
-    console.log('newData:', data)
+    const info = JSON.parse(data.value)
+    console.log('ws info:', info)
+    debugger
+    if (info.msg_type === 'flow_status' &&
+        info.flow_id === route.query.id &&
+        info.flow_status > 1) {
+      window.location.reload()
+    } else if (info.msg_type === 'node_status' &&
+               info.flow_id === route.query.id) {
+      // node status
+      const idNodeMap = info.nodes.reduce((acc, item) => {
+        acc[item['id']] = item
+        return acc
+      }, {})
+      flowStore.detail.nodes.forEach((node) => {
+        console.log('id')
+        if (node.id in idNodeMap) {
+          node.status = idNodeMap[node.id].status
+        }
+      })
+    } else if (info.msg_type === 'exec_status' &&
+               info.flow_id === route.query.id) {
+      // exec status
+    }
   }
 )
 
@@ -186,5 +212,10 @@ el-header {
 
 .el-button {
   margin-top: 20px;
+}
+
+.warning-text {
+  font-size: 24px;
+  color: red;
 }
 </style>

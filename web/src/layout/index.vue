@@ -56,7 +56,7 @@ watch(() => route.path, () => {
   activeIndex.value = route.path.replace('/static/', '').replace('flow.detail', 'flow')
 })
 onMounted(() => {
-  activeIndex.value = route.path.replace('/static/', '')
+  activeIndex.value = route.path.replace('/static/', '').replace('flow.detail', 'flow')
 })
 </script>
  

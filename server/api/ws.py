@@ -1,10 +1,22 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from sqlmodel import SQLModel
 
 router = APIRouter()
 socket = None
 
 def get_socket():
+    global socket
     return socket
+
+
+async def ws_send_msg(msg: dict | SQLModel):
+    if isinstance(msg, SQLModel):
+        msg = jsonable_encoder(msg)
+
+    socket = get_socket()
+    if socket:
+        await socket.send_json(msg)
 
 @router.websocket('/ws/flow')
 async def ws_flow(websocket: WebSocket):

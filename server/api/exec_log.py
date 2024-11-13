@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
@@ -5,8 +7,10 @@ from sqlmodel import select, func
 
 from server.model import SessionDep, Flow, FlowNode, FlowNodeRead, FlowEdgeRead, ExecLog, ExecLogCreate, ExecLogRead, ExecLogDetail, ExecLogStatus, FlowNodeStatus
 from server.util.flow.execute import exec_flow
+from server.api.ws import ws_send_msg
 
 def exec_flow_task(session: SessionDep, log_id: int):
+
     log = session.get(ExecLog, log_id)
     flow = session.get(Flow, log.flow_id)
     nodes = session.exec(select(FlowNode).where(FlowNode.flow_id == log.flow_id)).all()
@@ -20,7 +24,13 @@ def exec_flow_task(session: SessionDep, log_id: int):
         for node in node_list:
             session.add(node)
         session.commit()
-
+        asyncio.run(
+            ws_send_msg({
+                'msg_type': 'node_status',
+                'flow_id': str(node_list[0].flow_id),
+                'nodes': jsonable_encoder(FlowNodeRead.from_flow_nodes(node_list))
+            })
+        )
     
     flow_info = {
         'nodes': flow.nodes,
