@@ -75,6 +75,14 @@ async def get_flows(session: SessionDep,
         'total': total
     }
     
+@router.get('/checkname')
+async def check_flow_name_exist(session: SessionDep, name: str) -> dict:
+    if session.exec(select(Flow).where(Flow.name == name)).first():
+        return {'existed': True}
+    else:
+        return {'existed': False}
+    
+    
 @router.post('')
 async def create_flow(flow_create: FlowCreate,
                      session: SessionDep, background_tasks: BackgroundTasks,

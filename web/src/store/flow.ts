@@ -124,9 +124,7 @@ export const useFlowStore = defineStore('flowStore', () => {
       }
     }
     const fromUICreate = async () => {
-      debugger
       const response = await axios.post('/flows', {name: detail.name})
-      debugger
       console.log('create', response.data)
     }
 

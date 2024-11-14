@@ -82,7 +82,7 @@ class FlowNodeRead(FlowNodeBase):
                 status=flow_node_record.status,
                 position=flow_node_record.position,
                 extra=flow_node_record.extra,
-                data={'status': flow_node_record.status}
+                data={'status': flow_node_record.status, 'id': flow_node_record.node_id}
             ))
         return resp_node_list
         

@@ -80,9 +80,8 @@ const validateName = async (rule, value, callback) => {
     return callback(new Error('用户名不能为空'))
   }
   try {
-    return callback()
-    const response = await axios.get(`/flow/checkname?name=${value}`)
-    if (response.data.exists) {
+    const response = await axios.get(`/flows/checkname?name=${value}`)
+    if (response.data.existed) {
       callback(new Error('用户名已存在'))
     } else {
       callback()

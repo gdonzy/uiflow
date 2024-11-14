@@ -41,28 +41,43 @@
             >
               <Panel position="top-left"  style="margin-top: 0;">
                 <el-button-group>
-                  <el-button @click="nodeDialogVisible = true">
-                    <el-icon color="#409EFC"><Plus /></el-icon>
-                  </el-button>
-                  <el-button @click="edgeDialogVisible = true">
-                    <el-icon color="#409EFC"><Link /></el-icon>
-                  </el-button>
+                  <el-tooltip placement="bottom">
+                    <template #content>点击添加节点</template>
+                    <el-button @click="handleNodeDialog(null)">
+                      <el-icon color="#409EFC"><Plus /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip placement="bottom">
+                    <template #content>点击添加连线</template>
+                    <el-button @click="handleEdgeDialog(null)">
+                      <el-icon color="#409EFC"><Link /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip placement="bottom">
+                    <template #content>单击流程图中的元素可编辑，双击流程图中的元素可删除。</template>
+                    <el-button style="border: 0;margin-left: 2px;">
+                      <el-icon color="#409EFC"><QuestionFilled /></el-icon>
+                    </el-button>
+                  </el-tooltip>
                 </el-button-group>
               </Panel>
               <el-dialog
                 v-model="nodeDialogVisible"
-                title="创建节点"
+                :title="nodeDlTitle"
                 width="50%"
               >
-                <el-form>
+                <el-form v-model="newNode">
                   <el-form-item label="名称">
-                    <el-input/>
+                    <el-input
+                      v-model="newNode.label"
+                      style="width: 280px"
+                    />
                   </el-form-item>
                 </el-form>
                 <template #footer>
                   <div class="dialog-footer">
                     <el-button @click="nodeDialogVisible = false">取消</el-button>
-                    <el-button>确定</el-button>
+                    <el-button @click="handleAddUpdateNode">确定</el-button>
                   </div>
                 </template>
               </el-dialog>
@@ -71,12 +86,59 @@
                 title="连接步骤节点"
                 width="50%"
               >
-                <el-form>
+                <el-form :model="newEdge">
+                  <el-row :gutter="20" align="middle">
+                    <el-col :span="10">
+                      <el-form-item>
+                        <el-input 
+                          v-model="newEdge.source"
+                          placeholder="输入来源节点ID"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="4" class="arrow-col">
+                      <span style="font-size: 1.5rem;margin-bottom: 20%;">-></span>
+                    </el-col>
+                    <el-col :span="10">
+                      <el-form-item>
+                        <el-input 
+                          v-model="newEdge.target"
+                          placeholder="输入目标节点ID"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
                 </el-form>
                 <template #footer>
                   <div class="dialog-footer">
                     <el-button @click="edgeDialogVisible = false">取消</el-button>
-                    <el-button type="primary">确定</el-button>
+                    <el-button @click="handleAddUpdateEdge">确定</el-button>
+                  </div>
+                </template>
+              </el-dialog>
+              <el-dialog
+                v-model="nodeDelVisible"
+                title="删除节点"
+                width="50%"
+              >
+                <span>确定删除节点&ltNode:{{ delNodeId }}&gt?</span>
+                <template #footer>
+                  <div class="dialog-footer">
+                    <el-button @click="nodeDelVisible = false">取消</el-button>
+                    <el-button @click="handleRemoveNode">确定</el-button>
+                  </div>
+                </template>
+              </el-dialog>
+              <el-dialog
+                v-model="edgeDelVisible"
+                title="删除节点"
+                width="50%"
+              >
+                <span>确定删除连线&ltEdge:source({{delEdge.source}})->target({{delEdge.target}})&gt?</span>
+                <template #footer>
+                  <div class="dialog-footer">
+                    <el-button @click="edgeDelVisible = false">取消</el-button>
+                    <el-button @click="handleRemoveEdge">确定</el-button>
                   </div>
                 </template>
               </el-dialog>
@@ -89,8 +151,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, computed, watch, markRaw, onBeforeUnmount } from 'vue'
-import { VueFlow, Panel } from '@vue-flow/core'
+import { ref, reactive, onMounted, computed, watch, markRaw, onBeforeUnmount } from 'vue'
+import { VueFlow, Panel, useVueFlow } from '@vue-flow/core'
 
 import { useRoute, useRouter } from 'vue-router'
 import { useFlowStore } from '@/store/flow'
@@ -108,13 +170,12 @@ const handleSubmit = () => {
 }
 
 // websocket
-const { status, data, open, close } = useWebSocket('ws://localhost:8009/ws/flow')
+const { data } = useWebSocket('ws://localhost:8009/ws/flow')
 watch(
   data,
   () => {
     const info = JSON.parse(data.value)
     console.log('ws info:', info)
-    debugger
     if (info.msg_type === 'flow_status' &&
         info.flow_id === route.query.id &&
         info.flow_status > 1) {
@@ -122,24 +183,18 @@ watch(
     } else if (info.msg_type === 'node_status' &&
                info.flow_id === route.query.id) {
       // node status
-      const idNodeMap = info.nodes.reduce((acc, item) => {
-        acc[item['id']] = item
-        return acc
-      }, {})
-      flowStore.detail.nodes.forEach((node) => {
-        console.log('id')
-        if (node.id in idNodeMap) {
-          node.status = idNodeMap[node.id].status
-        }
-      })
+      window.location.reload()
     } else if (info.msg_type === 'exec_status' &&
                info.flow_id === route.query.id) {
       // exec status
+      window.location.reload()
     }
   }
 )
 
-// vue-flow
+//vue-flow
+const flowObj = useVueFlow()
+//vue-flow: node操作
 const nodeTypes = {
   start: markRaw(StartNode),
   end: markRaw(EndNode),
@@ -148,11 +203,143 @@ const nodeTypes = {
 const nodes = computed(() => {
   return flowStore.detail.nodes
 })
+const nodeDlTitle = ref('')
+const newNode = reactive({
+  id: '', type: 'uiop', label: '', status: 0,
+  'position': {'x': 260, 'y': 80},
+  'data': {'op_type': '', 'status': 0}
+})
+const delNodeId = ref('')
+const nodeDialogVisible = ref(false)
+const nodeDelVisible = ref(false)
+const handleNodeDialog = (nodeInfo) => {
+  if (nodeInfo) {
+    Object.keys(nodeInfo).forEach(key => {
+        newNode[key] = nodeInfo[key]
+    })
+    nodeDlTitle.value = '编辑节点'
+  } else {
+    newNode.id = ''
+    newNode.label = ''
+    nodeDlTitle.value = '添加节点'
+  }
+  nodeDialogVisible.value = true
+}
+flowObj.onNodeClick(({event, node}) => {
+  handleNodeDialog(node)
+})
+flowObj.onNodeDoubleClick(({event, node}) => {
+  delNodeId.value = node.id
+  nodeDelVisible.value = true
+})
+const handleAddUpdateNode = () => {
+  nodeDialogVisible.value = false
+  if (newNode.id.length > 0) {
+    flowObj.updateNode(newNode.id, newNode)
+    // updateNode调用，label等字段变化不会触发onNodesChange
+    const node = flowStore.find(item => item.id == newNode.id)
+    if (node) {
+      Object.keys(newNode).forEach(key => {
+        node[key] = newNode[key]
+      })
+    }
+  } else {
+    const maxNodeId = flowStore.detail.nodes.reduce((max, node) => {
+      return Math.max(max, parseInt(node.id))
+    }, 0)
+    newNode.id = (maxNodeId + 1).toString()
+    flowObj.addNodes([newNode])
+  }
+}
+const handleRemoveNode = () => {
+  nodeDelVisible.value = false
+  const delEdgeIds: string[] = []
+  flowObj.removeNodes([delNodeId.value])
+  flowObj.removeEdges(delEdgeIds)
+}
+flowObj.onNodesChange((changes) => {
+  const delNodeIds: number[] = []
+  const updateNodesMap = {} as [key: string, value: any]
+  changes.forEach(change => {
+    if (change.type == 'remove') {
+      delNodeIds.push(change.id)
+    } else if (change.type === 'add') {
+      flowStore.detail.nodes.push(change.item)
+    }
+  })
+  for (let i=flowStore.detail.nodes.length-1; i>=0; i--) {
+    const node = flowStore.detail.nodes[i]
+    if (delNodeIds.includes(node.id)) {
+      flowStore.detail.nodes.splice(i, 1)
+    } else if (node.id in updateNodesMap) {
+      Object.keys(node).forEach(key => {
+        node[key] = updateNodesMap[node.id][key]
+      })
+    }
+  }
+})
+//vue-flow: edge操作
 const edges = computed(() => {
   return flowStore.detail.edges
 })
-const nodeDialogVisible = ref(false)
+const edgeDlTitle = ref('')
+const newEdge = reactive({'id': '', 'source': '', 'target': ''})
+const delEdge = reactive({'id': '', 'source': '', 'target': ''})
 const edgeDialogVisible = ref(false)
+const edgeDelVisible = ref(false)
+const handleEdgeDialog = (edgeInfo) => {
+  if (edgeInfo) {
+    Object.keys(newEdge).forEach(key => {
+      newEdge[key] = edgeInfo[key]
+    })
+    edgeDlTitle.value = '编辑步骤节点连线'
+  } else {
+    newEdge.id = ''
+    newEdge.source = ''
+    newEdge.target = ''
+    edgeDlTitle.value = '添加步骤节点连线'
+  }
+  edgeDialogVisible.value = true
+}
+flowObj.onEdgeClick(({event, edge}) => {
+  handleEdgeDialog(edge)
+})
+flowObj.onEdgeDoubleClick(({event, edge}) => {
+  Object.keys(delEdge).forEach(key => {
+    delEdge[key] = edge[key]
+  })
+  edgeDelVisible.value = true
+})
+const handleAddUpdateEdge = () => {
+  edgeDialogVisible.value = false
+  if (newEdge.id.length > 0) {
+    // 由于edge的id与source、target有关联，采用先删除再新增的方式来更新edge
+    flowObj.removeEdges([newEdge.id])
+  }
+  newEdge.id = `e${newEdge.source}_${newEdge.target}`
+  flowObj.addEdges([newEdge])
+}
+const handleRemoveEdge = () => {
+  edgeDelVisible.value = false
+  flowObj.removeEdges([delEdge.id])
+}
+flowObj.onEdgesChange((changes) => {
+  const delEdgeIds: number[] = []
+  changes.forEach(change => {
+    if (change.type === 'remove') {
+      delEdgeIds.push(change.id)
+    } else if (change.type === 'add') {
+      flowStore.detail.edges.push(change.item)
+    }
+  })
+  for (let i=flowStore.detail.edges.length-1; i>=0; i--) {
+    const edge = flowStore.detail.edges[i]
+    if (delEdgeIds.includes(edge.id)) {
+      flowStore.detail.edges.splice(i, 1)
+    }
+  }
+})
+
 
 const backToFlowList = () => {
   router.push('/static/flow')
@@ -217,5 +404,11 @@ el-header {
 .warning-text {
   font-size: 24px;
   color: red;
+}
+
+.arrow-col{
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 </style>

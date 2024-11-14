@@ -1,13 +1,16 @@
 <template>
 <div>
-    <Handle type="target" :position="Position.Top" />
-    <div>
-      <span font-size="8px">{{ label }}</span>
-      <el-icon class="icon" :style="statusColor">
-          <component :is="statusIcon"></component>
-      </el-icon>
+    <div class="node-id">{{ data.id }}</div>
+    <div class="node-container">
+        <Handle type="target" :position="Position.Top" />
+        <div class="node-info">
+            <el-icon class="info-icon" :style="statusColor">
+                <component :is="statusIcon"></component>
+            </el-icon>
+            <span>{{ label }}</span>
+        </div>
+        <Handle type="source" :position="Position.Bottom" />
     </div>
-    <Handle type="source" :position="Position.Bottom" />
 </div>
 </template>
 
@@ -49,7 +52,36 @@ const statusIcon = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.icon {
-    margin-left: 2px;
+.node-id {
+    position: absolute;
+    left: -0.5rem;
+    top: -0.5rem;
+    font-size: 0.6rem;
+    color: white;
+    height: 1rem;
+    width: 1rem;
+    background-color: rgb(161, 161, 126);
+    border: 1px solid rgb(161, 161, 126);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
+}
+.node-container {
+    position: relative;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: white;
+    z-index: 1;
+    .node-info {
+        margin: 0.2rem 0.3rem;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        .info-icon {
+            margin-right: 4px;
+        }
+    }
 }
 </style>
