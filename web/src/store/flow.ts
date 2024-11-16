@@ -39,19 +39,23 @@ interface FlowList {
   total: number
 }
 
+const dateStrFormat = (dateStr: string) => {
+  return dateStr.slice(0, 19)
+}
+
 export const FlowItemColumns = [
     {label: 'ID', prop: 'id'},
     {label: '名称', prop: 'name'},
-    {label: '创建时间', prop: 'create_at'},
-    {label: '更新时间', prop: 'update_at'}
+    {label: '创建时间', prop: 'create_at', format: dateStrFormat},
+    {label: '更新时间', prop: 'update_at', format: dateStrFormat}
 ]   
 
 export const FlowDetailColumns = [
     {label: 'ID', prop: 'id'},
     {label: '名称', prop: 'name'},
     {label: '详情', prop: 'info'},
-    {label: '创建时间', prop: 'create_at'},
-    {label: '更新时间', prop: 'update_at'}
+    {label: '创建时间', prop: 'create_at', format: dateStrFormat},
+    {label: '更新时间', prop: 'update_at', format: dateStrFormat}
 ]
 
 export const useFlowStore = defineStore('flowStore', () => {

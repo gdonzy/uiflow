@@ -38,7 +38,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/a/, '')
       },
       '/ws/flow': {
-        target: 'ws://localhost:8009/ws/flow',
+        target: 'ws://localhost:8009',
+        changeOrigin: true,
         ws: true,
       }
     }

@@ -101,20 +101,39 @@ async def create_flow(flow_create: FlowCreate,
 async def get_flow_detail(session: SessionDep,
                          flow_id: int) -> FlowDetail:
     flow = session.exec(select(Flow).where(Flow.id == flow_id)).first()
-    return FlowDetail.from_flow_record(flow)
+    return FlowDetail.from_flow_record(session, flow)
 
 @router.put('/{flow_id}')
 async def update_flow(session: SessionDep, flow_id: int, flow_update: FlowUpdate) -> FlowDetail:
     flow = session.exec(select(Flow).where(Flow.id == flow_id)).first()
+    flow_update = flow_update.model_dump()
+    # nodes
+    nodes = flow_update.pop('nodes')
+    for node in nodes:
+        node['node_id'] = node.pop('id')
+    FlowNode.multi_create_or_update(session, flow, nodes)
+    # edges
+    edges = flow_update.pop('edges')
+    for edge in edges:
+        edge['edge_id'] = edge.pop('id')
+    FlowEdge.multi_create_or_update(session, flow, edges)
+    # flow
     flow.sqlmodel_update(flow_update)
     session.add(flow)
     session.commit()
-    return flow
+    return FlowDetail.from_flow_record(session, flow)
 
 @router.delete('/{flow_id}')
 async def delete_flow(session: SessionDep, flow_id: int):
     flow = session.exec(select(Flow).where(Flow.id == flow_id)).first()
-    pass
+    for exec_log in flow.exec_logs:
+        session.delete(exec_log)
+    for node in flow.nodes:
+        session.delete(node)
+    for edge in flow.edges:
+        session.delete(edge)
+    session.delete(flow)
+    session.commit()
 
 
 

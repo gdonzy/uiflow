@@ -19,9 +19,13 @@ interface HistoryList {
 
 export const HistoryItemColumns = [
     {label: 'ID', prop: 'id'},
-    {label: '流程名称', prop: 'flow_id'},
-    {label: '状态', prop: 'status'},
-    {label: '创建时间', prop: 'create_at'}
+    {label: '流程名称', prop: 'flow_name'},
+    {label: '状态', prop: 'status', format: (status: number) => {
+        return {0: '未执行', 1: '执行中', 2: '执行完成', 3: '执行失败'}[status]
+    }},
+    {label: '创建时间', prop: 'create_at', format: (dateStr: string) => {
+        return dateStr.slice(0, 19)
+    }}
 ]
 
 export const useHistoryStore = defineStore('historyStore', () => {

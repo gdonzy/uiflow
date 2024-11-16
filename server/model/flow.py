@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlmodel import Field, SQLModel, select, Relationship
 from sqlalchemy import JSON, Column
+from fastapi.encoders import jsonable_encoder
 
 class FlowBase(SQLModel):
     name: str = Field(index=True, unique=True)
@@ -13,6 +14,7 @@ class Flow(FlowBase, table=True):
     id: int = Field(default=None, primary_key=True)
     nodes: list["FlowNode"] = Relationship(back_populates='flow')
     edges: list["FlowEdge"] = Relationship(back_populates='flow')
+    exec_logs: list["ExecLog"] = Relationship(back_populates='flow')
     
     def update_nodes_edges(self, session):
         self.nodes = session.exec(
@@ -26,7 +28,8 @@ class FlowCreate(SQLModel):
     name: str = Field(index=True, unique=True)
     
 class FlowUpdate(SQLModel):
-    info: dict = Field(sa_column=Column(JSON), default={})
+    nodes: list["FlowNode"]
+    edges: list["FlowEdge"]
     
 class FlowRead(FlowBase):
     id: int = Field(default=None, primary_key=True)
@@ -60,6 +63,9 @@ class FlowNode(FlowNodeBase, table=True):
                     flow=flow,
                     node_id=node_id,
                 )
+            for k in ('flow_id', 'node_id'):
+                if k in node_info:
+                    node_info.pop(k)
             node_record.sqlmodel_update(node_info)
             session.add(node_record)
         for node_record in nodeid_record_map.values():
@@ -112,6 +118,9 @@ class FlowEdge(FlowEdgeBase, table=True):
                     flow=flow,
                     edge_id=edge_id,
                 )
+            for k in ('flow_id', 'edge_id'):
+                if k in edge_info:
+                    edge_info.pop(k)
             edge_record.sqlmodel_update(edge_info)
             session.add(edge_record)
         for edge_record in edgeid_record_map.values():
@@ -137,9 +146,16 @@ class FlowDetail(FlowBase):
     id: int
     nodes: list[FlowNodeRead] = []
     edges: list[FlowEdgeRead] = []
+    last_log: dict = {}
     
     @classmethod
-    def from_flow_record(cls, flow_record):
+    def from_flow_record(cls, session, flow_record):
+        from server.model import ExecLog
+        last_log = session.exec(
+            select(ExecLog)\
+            .where(ExecLog.flow_id == flow_record.id)\
+            .order_by(ExecLog.create_at.desc())
+        ).first()
         return cls(
             id=flow_record.id,
             name=flow_record.name,
@@ -149,5 +165,6 @@ class FlowDetail(FlowBase):
             update_at=flow_record.update_at,
             nodes=FlowNodeRead.from_flow_nodes(flow_record.nodes),
             edges=FlowEdgeRead.from_flow_edges(flow_record.edges),
+            last_log=jsonable_encoder(last_log or {})
         )
     

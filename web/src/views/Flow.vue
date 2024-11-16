@@ -3,7 +3,7 @@
     <el-header style="height: auto">
       <strong>界面操作工作流列表</strong>
     </el-header>
-    <el-button-group style="padding: 0 20px">
+    <el-button-group style="padding: 0 20px;">
       <el-button type="primary" @click="fromUIVisible = true" style="width: 100px">根据UI操作创建</el-button>
       <el-button type="primary" @click="" style="width: 100px">根据文档创建</el-button>
     </el-button-group>
@@ -16,9 +16,10 @@
         @page-change="changePageData"
         @page-size-change="changePageSizeData">
         <template #extra-column>
-          <el-table-column label="操作" width="150">
+          <el-table-column label="操作" min-width="100">
             <template  #default="scope">
               <el-button @click="gotoDetail(scope.row)">详情</el-button>
+              <el-button type="danger" @click="handleDelFlow(scope.row)">删除</el-button>
             </template>
           </el-table-column>
         </template>
@@ -68,6 +69,38 @@ const changePageSizeData = (page: number, size: number) => {
 const gotoDetail = (row) => {
   router.push(`/static/flow.detail?id=${row.id}`)
 }
+const handleDelFlow = (row) => {
+  ElMessageBox.confirm(
+    '确定删除?',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  )
+  .then(async () => {
+    const resp = await axios.delete(`/flows/${row.id}`)
+    if (resp.status === 200) {
+      ElMessage({
+        message: '删除成功。',
+        type: 'success'
+      })
+      changePageData(1)
+    } else {
+      ElMessage({
+        message: '删除失败！',
+        type: 'warning'
+      })
+    }
+  })
+  .catch(() => {
+    ElMessage({
+      type: 'info',
+      message: '已取消删除'
+    })
+  })
+}
 
 // create flow from ui operations
 const fromUIVisible = ref(false)
@@ -108,8 +141,14 @@ onMounted(() => {
 </script>
 
 <style lang="scss"  scoped>
-.attribute-card {
-  margin-bottom: 20px;
+el-header {
+  background-color: #409eff;
+  color: white;
+  text-align: center;
   padding: 15px;
+  font-size: 20px;
+}
+.el-button {
+  margin-top: 20px;
 }
 </style>

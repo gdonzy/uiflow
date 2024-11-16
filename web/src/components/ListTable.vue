@@ -5,8 +5,18 @@
         :key="column.prop"
         :prop="column.prop"
         :label="column.label"
-      />
+      >
+        <template #default="scope">
+          <span v-if="'format' in column">
+            {{ column.format(scope.row[column.prop]) }}
+          </span>
+          <span v-else>
+            {{ scope.row[column.prop] }}
+          </span>
+        </template>
+      </el-table-column>
       <slot name="extra-column"></slot>
+      
     </el-table>
     <el-pagination
       class="pagination"

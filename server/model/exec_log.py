@@ -13,7 +13,12 @@ class ExecLogBase(SQLModel):
     
 class ExecLog(ExecLogBase, table=True):
     id: int = Field(default=None, primary_key=True)
-    flow_id: int = Field(default=None)
+    flow_id: int = Field(default=None, foreign_key='flow.id')
+    flow: Flow = Relationship(back_populates='exec_logs')
+    
+    @property
+    def flow_name(self):
+        return self.flow.name
     
     @classmethod
     def create(cls, session, flow):
@@ -30,6 +35,7 @@ class ExecLogCreate(SQLModel):
 class ExecLogRead(SQLModel):
     id: int = Field(default=None, primary_key=True)
     flow_id: int = Field(default=None)
+    flow_name: str
     status: int = Field(default=0) # 0:ready 1:running 2:success 3:failed
     result: dict = Field(sa_column=Column(JSON), default={})
     create_at: datetime = Field(default_factory=datetime.now)

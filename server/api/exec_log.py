@@ -84,17 +84,10 @@ async def exec_flow_to_record(session: SessionDep, background_tasks: BackgroundT
     background_tasks.add_task(exec_flow_task, session=session, log_id=exec_log.id)
     return exec_log
 
-@router.get('/{log_id}')
-async def get_exec_log_detail(session: SessionDep,
-                              log_id: int) -> ExecLogDetail:
+@router.delete('/{log_id}')
+async def delete_exec_log(session: SessionDep, log_id: int):
     log = session.get(ExecLog, log_id)
-    if log.status not in (ExecLogStatus.success, ExecLogStatus.failed):
-        nodes = session.exec(select(ExecNode).where(ExecNode.log_id == log_id)).all()
-        id_node_map = {
-            node.node_id: node for node in nodes
-        }
-        for node in log.info['nodes']:
-            node.status = id_node_map[node['id']].status
-            node.result = id_node_map[node['id']].result
-        
-    return log
+    if not log:
+        raise HTTPException(status_code=404, detail='log not found')
+    session.delete(log)
+    session.commit()

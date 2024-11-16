@@ -16,21 +16,23 @@
       </el-menu>
     </el-header>
     <el-main>
-      <router-view v-slot="{ Component }">
-        <component :is="Component">
-          <el-dialog
-            title="关于"
-            :visible.sync="aboutVisible"
-            width="30%"
-          >
-            <span>111</span>
-            <span class='dialog-footer'>
-              <el-button @click="aboutVisible = false">关闭</el-button>
-            </span>
-          </el-dialog>
-        </component>
+      <router-view>
       </router-view>
     </el-main>
+    <el-dialog
+      v-model="aboutVisible"
+      title="关于"
+      width="30%"
+    >
+      <div>
+        <p>
+          <a href="https://github.com/gdonzy/uiflow">UI Flow</a>
+        </p>
+      </div>
+      <template #footer>
+        <el-button @click="aboutVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
  

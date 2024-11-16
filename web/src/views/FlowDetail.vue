@@ -7,7 +7,7 @@
       <el-tooltip content="回到工作流程列表" placement="top">
         <el-button @click="backToFlowList" style="width: 10px"><el-icon><Back /></el-icon></el-button>
       </el-tooltip>
-      <el-button type="primary" @click="handleSubmit" style="width: 80px">保存</el-button>
+      <el-button type="primary" @click="handleSave" style="width: 80px">保存</el-button>
       <el-button type="primary" @click="handleExec" style="width:80px">执行</el-button>
     </el-button-group>
     <el-button-group v-else style="padding: 0 20px;">
@@ -26,7 +26,7 @@
           <span>{{ flowStore.detail.create_at }}</span>
         </el-form-item>
         <el-form-item v-show="flowStore.detail.status == 2" label="执行状态" key="lastExec">
-          <span>1</span>
+          <span>{{ lastLogStatus }}</span>
         </el-form-item>
         <div v-show="flowStore.detail.status >= 2" label="流程" key="flow">
           <div class="flowchart" style="width: 1000px; height: 1000px; border: 1px solid black;">
@@ -89,7 +89,7 @@
                 <el-form :model="newEdge">
                   <el-row :gutter="20" align="middle">
                     <el-col :span="10">
-                      <el-form-item>
+                      <el-form-item label="来源ID">
                         <el-input 
                           v-model="newEdge.source"
                           placeholder="输入来源节点ID"
@@ -97,10 +97,10 @@
                       </el-form-item>
                     </el-col>
                     <el-col :span="4" class="arrow-col">
-                      <span style="font-size: 1.5rem;margin-bottom: 20%;">-></span>
+                      <span style="font-size: 1.5rem;margin-bottom: 20%">-></span>
                     </el-col>
                     <el-col :span="10">
-                      <el-form-item>
+                      <el-form-item label="目标ID">
                         <el-input 
                           v-model="newEdge.target"
                           placeholder="输入目标节点ID"
@@ -166,11 +166,25 @@ import { useWebSocket } from '@vueuse/core'
 const route = useRoute()
 const router = useRouter()
 const flowStore = useFlowStore()
-const handleSubmit = () => {
-}
+const lastLogStatus = computed(() => {
+  if (flowStore.detail.last_log && 'status' in flowStore.detail.last_log) {
+    const status = flowStore.detail.last_log.status
+    return {0:'未执行', 1:'执行中', 2:'执行成功', 3:'执行失败'}[status]
+  } else {
+    return '没有执行记录'
+  }
+})
 
 // websocket
-const { data } = useWebSocket('ws://localhost:8009/ws/flow')
+const { data } = useWebSocket('/ws/flow', {
+  autoReconnect: {
+    retries: 3,
+    delay: 1000,
+    onFailed() {
+      console.log('ws connect failed after 3 retries')
+    }
+  },
+})
 watch(
   data,
   () => {
@@ -183,7 +197,9 @@ watch(
     } else if (info.msg_type === 'node_status' &&
                info.flow_id === route.query.id) {
       // node status
-      window.location.reload()
+      info.nodes.forEach((node) => {
+        flowObj.updateNode(node.id, {'data': {'status': node.status, 'id': node.id}})
+      })
     } else if (info.msg_type === 'exec_status' &&
                info.flow_id === route.query.id) {
       // exec status
@@ -344,6 +360,20 @@ flowObj.onEdgesChange((changes) => {
 const backToFlowList = () => {
   router.push('/static/flow')
 }
+const handleSave = async () => {
+  const resp = await axios.put(`/flows/${route.query.id}`, flowStore.detail)
+  if (resp.status === 200) {
+    ElMessage({
+      message: '保存成功。',
+      type: 'success'
+    })
+  } else {
+    ElMessage({
+      message: '保存失败！',
+      type: 'warning'
+    })
+  }
+}
 const handleExec = async () => {
   const resp = await axios.post('/exec', {'flow_id': flowStore.detail_id})
   console.log(resp)
@@ -379,22 +409,6 @@ el-header {
   text-align: center;
   padding: 15px;
   font-size: 20px;
-}
-
-.attribute-card {
-  margin-bottom: 20px;
-  padding: 15px;
-}
-
-.flow-chart-card {
-  padding: 15px;
-  margin-top: 20px;
-}
-
-.chart-container {
-  border: 1px solid #dcdfe6;
-  padding: 20px;
-  text-align: center;
 }
 
 .el-button {

@@ -1,13 +1,15 @@
 <template>
-  <div>
+<div>
+  <div class="node-container">
     <Handle type="target" :position="Position.Top" />
-    <div>
-      <span font-size="14px">{{ label }}</span>
+    <div class="node-info">
       <el-icon class="icon" :style="statusColor">
         <component :is="statusIcon"></component>
       </el-icon>
+      <span>{{ label }}</span>
     </div>
   </div>
+</div>
 </template>
     
 <script lang="ts" setup>
@@ -47,7 +49,20 @@ const statusIcon = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.icon {
-    margin-left: 2px;
+.node-container {
+    position: relative;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    background-color: white;
+    z-index: 1;
+    .node-info {
+        margin: 0.2rem 0.3rem;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        .info-icon {
+            margin-right: 4px;
+        }
+    }
 }
 </style>
