@@ -12,7 +12,7 @@ ui操作自动执行框架。目前0.0.1版本为产品MVP版本。
 1. 前置条件
 安装npm(版本大于等于3.0) python(版本大于等于3.10)
 2. 下载代码
-   git clone
+   git clone https://github.com/gdonzy/uiflow.git
 3. 进入代码目录，执行如下命令
    make clean
    make build
