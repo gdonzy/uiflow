@@ -5,3 +5,4 @@ pynput==1.7.7
 pywebview==5.2
 sqlmodel==0.0.22
 uvicorn==0.31.0
+websockets==14.1

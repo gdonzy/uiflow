@@ -1,6 +1,6 @@
 <template>
   <el-container>
-    <el-header>
+    <el-header style="padding: 10px 0;">
       <el-menu
         :default-active="activeIndex"
         class="el-menu-demo"
@@ -15,19 +15,17 @@
         <el-button @click="aboutVisible = true" class="about">关于</el-button>
       </el-menu>
     </el-header>
-    <el-main>
+    <el-main style="padding: 10px 0;margin: 10px 0;">
       <router-view>
       </router-view>
     </el-main>
     <el-dialog
       v-model="aboutVisible"
       title="关于"
-      width="30%"
+      width="40%"
     >
       <div>
-        <p>
-          <a href="https://github.com/gdonzy/uiflow">UI Flow</a>
-        </p>
+        <p>详情访问<br/>https://github.com/gdonzy/uiflow</p>
       </div>
       <template #footer>
         <el-button @click="aboutVisible = false">关闭</el-button>

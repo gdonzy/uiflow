@@ -30,7 +30,8 @@ const routes = [
         ]
     },
     {
-        path: '/:pathMatch(.*)*',
+        //path: '/:pathMatch(.*)*',
+        path: '/aaa',
         name: '404',
         redirect: '/static/404',
         component: () => import('@/views/404.vue')

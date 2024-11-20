@@ -3,8 +3,7 @@ import json
 import asyncio
 
 from datetime import datetime
-from fastapi import APIRouter, BackgroundTasks, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from sqlmodel import select, func
 from pydantic import BaseModel
 
@@ -15,7 +14,10 @@ from server.util.flow.gen import mk_flow
 from server.common.constant import FlowStatus
 from server.api.ws import ws_send_msg
 
-flow_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
+if os.environ.get('UIFLOW_WORK_DIR'):
+    flow_base_dir = os.path.join(os.environ['UIFLOW_WORK_DIR'], 'flow_data')
+else:
+    flow_base_dir = os.path.join(os.path.dirname(__file__), 'flow_data')
 
 def _update_flow(session: SessionDep, flow: Flow, toUpdateInfo: dict):
     flow.sqlmodel_update(toUpdateInfo)
@@ -35,7 +37,7 @@ def ui_ops_to_flow(session: SessionDep, task_uuid: str):
     if not flow:
         raise Exception(f'flow row not found in db, task_uuid:{task_uuid}')
     status = FlowStatus.ready.value
-    work_dir = os.path.join('./flow_data', task_uuid)
+    work_dir = os.path.join(flow_base_dir, task_uuid)
     try:
         status = FlowStatus.collecting.value
         _update_flow(session, flow, {'status': status})
@@ -83,6 +85,27 @@ async def check_flow_name_exist(session: SessionDep, name: str) -> dict:
         return {'existed': False}
     
     
+@router.get('/node')
+async def get_flow_node(session: SessionDep,
+                       flow_id: int,
+                       node_id: str) -> dict:
+    node = session.exec(
+        select(FlowNode)\
+        .where(FlowNode.flow_id == flow_id, 
+               FlowNode.node_id == node_id)
+    ).first()
+    if not node:
+        raise HTTPException('node not found')
+    task_uuid = node.flow.task_uuid
+    flow_dir = os.path.join(flow_base_dir, task_uuid)
+    with open(os.path.join(flow_dir, 'flow.json')) as f:
+        flow_info = json.load(f)
+    node_info = None
+    for node_ in flow_info['nodes']:
+        if node_['node_id'] == node.node_id:
+            node_info = node_
+    return node_info
+    
 @router.post('')
 async def create_flow(flow_create: FlowCreate,
                      session: SessionDep, background_tasks: BackgroundTasks,
@@ -126,6 +149,8 @@ async def update_flow(session: SessionDep, flow_id: int, flow_update: FlowUpdate
 @router.delete('/{flow_id}')
 async def delete_flow(session: SessionDep, flow_id: int):
     flow = session.exec(select(Flow).where(Flow.id == flow_id)).first()
+    if not flow:
+        raise HTTPException('flow not found')
     for exec_log in flow.exec_logs:
         session.delete(exec_log)
     for node in flow.nodes:
@@ -134,9 +159,5 @@ async def delete_flow(session: SessionDep, flow_id: int):
         session.delete(edge)
     session.delete(flow)
     session.commit()
-
-
-
-
 
 

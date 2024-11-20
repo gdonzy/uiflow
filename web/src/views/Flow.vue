@@ -5,7 +5,9 @@
     </el-header>
     <el-button-group style="padding: 0 20px;">
       <el-button type="primary" @click="fromUIVisible = true" style="width: 100px">根据UI操作创建</el-button>
+      <!--
       <el-button type="primary" @click="" style="width: 100px">根据文档创建</el-button>
+      -->
     </el-button-group>
     <el-main>
       <listTable
@@ -115,18 +117,18 @@ const validateName = async (rule, value, callback) => {
   try {
     const response = await axios.get(`/flows/checkname?name=${value}`)
     if (response.data.existed) {
-      callback(new Error('用户名已存在'))
+      return callback(new Error('用户名已存在'))
     } else {
-      callback()
+      return callback()
     }
   } catch (error) {
-    callback(new Error('验证失败，请稍后再试'))
+    return callback(new Error('验证失败，请稍后再试'))
   }
 }
 const rules = {
   name: [
-    {required: true, message: '用户名不能为空', trigger: 'blur'},
-    {validator: validateName, trigger: 'blur'},
+    {required: true, message: '用户名不能为空', trigger: 'change'},
+    {validator: validateName, trigger: 'change'},
   ]
 }
 const fromUISubmit = async () => {

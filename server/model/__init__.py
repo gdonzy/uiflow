@@ -1,3 +1,4 @@
+import os
 from typing import Annotated
 from datetime import datetime
 
@@ -7,8 +8,10 @@ from .flow import (FlowCreate, FlowUpdate, FlowRead, FlowDetail, Flow,
                   FlowNode, FlowNodeRead, FlowEdge, FlowEdgeRead)
 from .exec_log import (ExecLog, ExecLogCreate, ExecLogRead, ExecLogDetail,
                        ExecLogStatus, FlowNodeStatus)
-    
-sqlite_url = f'sqlite:///db.sqlite'
+if os.environ.get('UIFLOW_WORK_DIR'):
+    sqlite_url = f'sqlite:///{os.environ["UIFLOW_WORK_DIR"]}/db.sqlite'
+else:
+    sqlite_url = 'sqlite:///db.sqlite'
 
 connect_args = {'check_same_thread': False}
 engine = create_engine(sqlite_url, connect_args=connect_args)
