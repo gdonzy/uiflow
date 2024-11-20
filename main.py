@@ -93,5 +93,4 @@ def main():
     run_fastapi(port) # 不能放到multiprocessing中，pyinstaller打包后，无法启动background_tasks
 
 if __name__ == '__main__':
-    #main()
-    #uvicorn.run(app, port=8009, log_level='info')
+    main()
